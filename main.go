@@ -1,11 +1,14 @@
+/*
+Copyright 2023 Jason Stewart. All rights reserved.
+Use of this source code is governed by the GPL v2 license,
+as specified in the ./LICENSE file.
+*/
+
 package main
 
 import (
 	"bufio"
 	"compress/gzip"
-	"crypto/md5"
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
@@ -13,10 +16,10 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/chzyer/readline"
+	"github.com/mattn/go-colorable"
 )
 
 type DoMode uint8
@@ -58,116 +61,16 @@ func URL2Sess(szUrl string) (Sess, error) {
 	return Sess{URL: *pUrl}, nil
 }
 
-func GenNonce64() (string, error) {
-	b := make([]byte, 8)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(b), nil
-}
+var STDOUT, STDERR io.Writer
 
-func GenAuthMD5(parts ...string) string {
-	vmd5 := md5.Sum([]byte(strings.Join(parts, ":")))
-	return hex.EncodeToString(vmd5[:])
-}
-
-func SplitWwwAuthenticate(wwwauth string) map[string]string {
-	parts := strings.Split(wwwauth, ",")
-	RET := make(map[string]string, len(parts))
-	for _, pt := range parts {
-		pt = strings.TrimSpace(pt)
-		sKv := strings.Split(pt, "=")
-		if len(sKv) > 1 {
-			if val, err := strconv.Unquote(sKv[1]); err == nil {
-				RET[sKv[0]] = val
-			}
-		}
-	}
-	return RET
-}
-
-func GenDigestAuth(rq *http.Request, szWwwAuth string) (string, error) {
-
-	var szUser, szPass string
-	if rq.URL.User != nil {
-		szUser = rq.URL.User.Username()
-		szPass, _ = rq.URL.User.Password()
-	}
-
-	pt := SplitWwwAuthenticate(szWwwAuth)
-	if len(pt) == 0 {
-		return "", errors.New("empty WWW-Authenticate map")
-	}
-
-	cnonce, err := GenNonce64()
-	if err != nil {
-		return "", err
-	}
-
-	// generate hashes
-	URI := rq.URL.RequestURI()
-	ha1 := GenAuthMD5(szUser, pt["Digest realm"], szPass)
-	ha2 := GenAuthMD5(rq.Method, URI)
-	response := GenAuthMD5(ha1, pt["nonce"], "1", cnonce, pt["qop"], ha2)
-
-	// quoting & order
-	mAuth := [][]string{
-		[]string{"Digest username", szUser},
-		[]string{"realm", pt["Digest realm"]},
-		[]string{"nonce", pt["nonce"]},
-		[]string{"uri", URI},
-		[]string{"cnonce", cnonce},
-		[]string{"nc", "1"},
-		[]string{"qop", pt["qop"]},
-		[]string{"response", response},
-	}
-	parts := make([]string, 0, len(mAuth))
-	for _, v := range mAuth {
-		parts = append(parts, v[0]+"="+strconv.Quote(v[1]))
-	}
-	return strings.Join(parts, ", "), nil
+func init() {
+	// TODO: stderr, fmt replacements
+	STDOUT = colorable.NewColorableStdout()
+	STDERR = colorable.NewColorableStderr()
 }
 
 func NewRq(szURL string) (*http.Request, error) {
 	return http.NewRequest("GET", szURL, nil)
-}
-
-/*
-HTTP GET w/ Digest Access Authentication
-https://en.wikipedia.org/wiki/Digest_access_authentication
-NOTE: pre-closes response body on non-200 response status
-*/
-func DigestAuthGet(pRq *http.Request) (rsp *http.Response, err error) {
-
-	rsp, err = http.DefaultClient.Do(pRq)
-	if err != nil {
-		return
-	}
-
-	// retry w/ auth
-	if rsp.StatusCode == 401 {
-		rsp.Body.Close()
-		rsp.Body = nil
-		wwwAuth := rsp.Header.Get("Www-Authenticate")
-		szAuth, e2 := GenDigestAuth(pRq, wwwAuth)
-		if e2 != nil {
-			err = fmt.Errorf("%w, %s", e2, wwwAuth)
-			return
-		}
-		pRq.Header.Set("Authorization", szAuth)
-
-		rsp, err = http.DefaultClient.Do(pRq)
-		if err != nil {
-			return
-		}
-	}
-
-	// err on non-200
-	if rsp.StatusCode != 200 {
-		rsp.Body.Close()
-		rsp.Body = nil
-	}
-	return
 }
 
 func ScrubKey(key string) string {
@@ -244,14 +147,12 @@ func (se *Sess) DoCmd(cmd string, prependHost bool) {
 	host := se.URL.String()
 
 	fnReport := func(s ...interface{}) {
-		// TODO: windows cli colors
-		// TODO: isatty
 		tmp := make([]interface{}, 0, len(s)+2)
-		tmp = append(tmp, "\x1b[91m"+"ERR "+"\x1b[0m", host)
+		tmp = append(tmp, "\x1b[91;1m"+"ERR "+"\x1b:[0m", host)
 		for _, v := range s {
 			tmp = append(tmp, v)
 		}
-		fmt.Fprintln(os.Stderr, tmp...)
+		fmt.Fprintln(STDERR, tmp...)
 	}
 
 	url, err := Cmd2Url(host, cmd)
@@ -261,7 +162,7 @@ func (se *Sess) DoCmd(cmd string, prependHost bool) {
 	}
 
 	// report request URL
-	fmt.Println("\x1b[93m" + url + "\x1b[0m")
+	fmt.Fprintln(STDERR, "\x1b[93;1mGET:\x1b[0m", url)
 
 	pRq, err := NewRq(url)
 	if err != nil {
@@ -286,7 +187,7 @@ func (se *Sess) DoCmd(cmd string, prependHost bool) {
 	if prependHost {
 		pph = append([]byte(se.URL.Host), '\t')
 	}
-	err = CopyBody(os.Stdout, rsp, pph)
+	err = CopyBody(STDOUT, rsp, pph)
 	if err != nil {
 		fnReport("IO", err)
 		return
@@ -336,21 +237,22 @@ func CopyBody(dst io.Writer, rsp *http.Response, linePrefix []byte) error {
 func main() {
 
 	var err error
+
 	defer func() {
 		if err != nil {
-			// TODO: color
-			fmt.Fprintln(os.Stderr, err.Error())
+			fmt.Fprintln(STDERR, err.Error())
 			os.Exit(1)
 		}
 	}()
 
+	// TODO: test under windows
+
 	// flags/help
 	bAlwaysPrependHost := false
 	flag.BoolVar(&bAlwaysPrependHost, "a", false, "always prepend hostname to results\n(i.e. even when there is only one host)")
-	flag.CommandLine.SetOutput(os.Stdout)
+	flag.CommandLine.SetOutput(STDOUT)
 	flag.Usage = func() {
-		iWri := os.Stdout
-		fmt.Fprint(iWri, `USAGE
+		fmt.Fprint(STDOUT, `USAGE
   camcli [OPTION].. HOSTS [COMMAND]...
 
 Batch API access to Amcrest & Dahua IP cameras.
@@ -364,7 +266,7 @@ OPTION
 
 		flag.PrintDefaults()
 
-		fmt.Fprint(iWri, `
+		fmt.Fprint(STDOUT, `
 HOSTS
   Comma-separated list of camera hosts to interact with, where each host takes
   the format 'http(s)://username:password@hostname'.  If the protocol is left
@@ -423,7 +325,7 @@ PUTTING IT TOGETHER
 		return
 	}
 	for _, u := range hosts {
-		fmt.Println(u.String())
+		fmt.Fprintln(STDERR, "\x1b[96;1mHOST:\x1b[0m", u.String())
 	}
 
 	// process commands
