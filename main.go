@@ -20,6 +20,7 @@ import (
 
 	"github.com/chzyer/readline"
 	"github.com/mattn/go-colorable"
+	"github.com/mattn/go-isatty"
 )
 
 type DoMode uint8
@@ -59,14 +60,6 @@ func URL2Sess(szUrl string) (Sess, error) {
 	}
 
 	return Sess{URL: *pUrl}, nil
-}
-
-var STDOUT, STDERR io.Writer
-
-func init() {
-	// TODO: stderr, fmt replacements
-	STDOUT = colorable.NewColorableStdout()
-	STDERR = colorable.NewColorableStderr()
 }
 
 func NewRq(szURL string) (*http.Request, error) {
@@ -234,7 +227,11 @@ func CopyBody(dst io.Writer, rsp *http.Response, linePrefix []byte) error {
 	return nil
 }
 
+var STDOUT, STDERR io.Writer
+
 func main() {
+
+	STDOUT, STDERR = os.Stdout, os.Stderr
 
 	var err error
 
@@ -245,11 +242,11 @@ func main() {
 		}
 	}()
 
-	// TODO: test under windows
-
 	// flags/help
 	bAlwaysPrependHost := false
+	bForceColor := false
 	flag.BoolVar(&bAlwaysPrependHost, "a", false, "always prepend hostname to results\n(i.e. even when there is only one host)")
+	flag.BoolVar(&bForceColor, "c", false, "force colors (even in pipelines)")
 	flag.CommandLine.SetOutput(STDOUT)
 	flag.Usage = func() {
 		fmt.Fprint(STDOUT, `USAGE
@@ -299,10 +296,21 @@ PUTTING IT TOGETHER
 	}
 
 	flag.Parse()
-	args := flag.Args()
-	hosts := make([]Sess, 0)
+
+	// TODO: test under windows
+	// color handling
+	fd := os.Stdout.Fd()
+	if bForceColor || isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd) {
+		STDOUT = colorable.NewColorable(os.Stdout)
+		STDERR = colorable.NewColorable(os.Stderr)
+	} else {
+		STDOUT = colorable.NewNonColorable(os.Stdout)
+		STDERR = colorable.NewNonColorable(os.Stderr)
+	}
 
 	// parse first arg as hosts string
+	args := flag.Args()
+	hosts := make([]Sess, 0)
 	if len(args) > 0 {
 
 		szHosts := args[0]
