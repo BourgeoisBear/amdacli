@@ -344,10 +344,58 @@ func main() {
 		}
 	}()
 
-	// TODO: help
-	// github markdown transclude?
+	// flags/help
 	bAlwaysPrependHost := false
-	flag.BoolVar(&bAlwaysPrependHost, "a", false, "always prepend hostname to results")
+	flag.BoolVar(&bAlwaysPrependHost, "a", false, "always prepend hostname to results\n(i.e. even when there is only one host)")
+	flag.CommandLine.SetOutput(os.Stdout)
+	flag.Usage = func() {
+		iWri := os.Stdout
+		fmt.Fprint(iWri, `USAGE
+  camcli [OPTION].. HOSTS [COMMAND]...
+
+Batch API access to Amcrest & Dahua IP cameras.
+
+If COMMAND(s) are given, runs each command against each HOST (i.e. camera),
+then terminates. If no commands are provided, starts in interactive mode, where
+commands can be supplied from the console.
+
+OPTION
+`)
+
+		flag.PrintDefaults()
+
+		fmt.Fprint(iWri, `
+HOSTS
+  Comma-separated list of camera hosts to interact with, where each host takes
+  the format 'http(s)://username:password@hostname'.  If the protocol is left
+  unspecified, 'http://' is assumed.
+
+  Example: "admin:mypass1@doorcam,https://admin:mypass2@192.168.1.50"
+
+COMMAND
+  PropertyName
+    Get current value of PropertyName via configManager.cgi.
+    Example: Multicast.TS[0]
+
+  PropertyName=NewValue
+    Set value of PropertyName to NewValue via configManager.cgi.
+    Example: Multicast.TS[0].TTL=1
+
+  /RequestURL
+    Forward raw request URL to camera API.
+    NOTE: Does not URL-encode parameters like other commands.
+          URL parameters must be encoded manually.
+    Example: /cgi-bin/global.cgi?action=setCurrentTime&time=2011-7-3%2021:02:32
+
+PUTTING IT TOGETHER
+  Interactive Mode:
+    camcli 'user:userpass@mycam'
+
+  Command Mode:
+    camcli 'user:userpass@mycam' 'Multicast.TS[0]' 'AlarmServer.Enable=false'
+`)
+	}
+
 	flag.Parse()
 	args := flag.Args()
 	hosts := make([]Sess, 0)
