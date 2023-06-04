@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/chzyer/readline"
@@ -227,30 +228,8 @@ func CopyBody(dst io.Writer, rsp *http.Response, linePrefix []byte) error {
 	return nil
 }
 
-var STDOUT, STDERR io.Writer
-
-func main() {
-
-	STDOUT, STDERR = os.Stdout, os.Stderr
-
-	var err error
-
-	defer func() {
-		if err != nil {
-			fmt.Fprintln(STDERR, err.Error())
-			os.Exit(1)
-		}
-	}()
-
-	// flags/help
-	bAlwaysPrependHost := false
-	bForceColor := false
-	flag.BoolVar(&bAlwaysPrependHost, "a", false, "always prepend hostname to results\n(i.e. even when there is only one host)")
-	flag.BoolVar(&bForceColor, "c", false, "force colors (even in pipelines)")
-	flag.CommandLine.SetOutput(STDOUT)
-	flag.Usage = func() {
-		fmt.Fprint(STDOUT, `USAGE
-  camcli [OPTION].. HOSTS [COMMAND]...
+const HELP_USAGE = `USAGE
+  %[1]s [OPTION].. HOSTS [COMMAND]...
 
 Batch API access to Amcrest & Dahua IP cameras.
 
@@ -259,11 +238,9 @@ then terminates. If no commands are provided, starts in interactive mode, where
 commands can be supplied from the console.
 
 OPTION
-`)
+`
 
-		flag.PrintDefaults()
-
-		fmt.Fprint(STDOUT, `
+const HELP_REST = `
 HOSTS
   Comma-separated list of camera hosts to interact with, where each host takes
   the format 'http(s)://username:password@hostname'.  If the protocol is left
@@ -282,17 +259,44 @@ COMMAND
 
   /RequestURL
     Forward raw request URL to camera API.
-    NOTE: Does not URL-encode parameters like other commands.
-          URL parameters must be encoded manually.
-    Example: /cgi-bin/global.cgi?action=setCurrentTime&time=2011-7-3%2021:02:32
+    Does not URL-encode parameters like other commands.
+    URL parameters must be encoded manually.
+    Example: /cgi-bin/global.cgi?action=setCurrentTime&time=2011-7-3%%2021:02:32
 
 PUTTING IT TOGETHER
   Interactive Mode:
-    camcli 'user:userpass@mycam'
+    %[1]s 'user:userpass@mycam'
 
   Command Mode:
-    camcli 'user:userpass@mycam' 'Multicast.TS[0]' 'AlarmServer.Enable=false'
-`)
+    %[1]s 'user:userpass@mycam' 'Multicast.TS[0]' 'AlarmServer.Enable=false'
+`
+
+var STDOUT, STDERR io.Writer
+
+func main() {
+
+	STDOUT, STDERR = os.Stdout, os.Stderr
+
+	var err error
+
+	defer func() {
+		if err != nil {
+			fmt.Fprintln(STDERR, err.Error())
+			os.Exit(1)
+		}
+	}()
+
+	// flags/help
+	bAlwaysPrependHost := false
+	bForceColor := false
+	flag.BoolVar(&bAlwaysPrependHost, "a", false, "always prepend hostname to results (even when there is only one host)")
+	flag.BoolVar(&bForceColor, "c", false, "force colors (even in pipelines)")
+	flag.CommandLine.SetOutput(STDOUT)
+	flag.Usage = func() {
+		appname := filepath.Base(os.Args[0])
+		fmt.Fprintf(STDOUT, HELP_USAGE, appname)
+		flag.PrintDefaults()
+		fmt.Fprintf(STDOUT, HELP_REST, appname)
 	}
 
 	flag.Parse()
