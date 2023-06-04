@@ -6,8 +6,9 @@ Interact with a single camera, or several in one command!
 
 ## Installation
 
-1. Install the latest Go compiler from https://golang.org/dl/
-2. Install the program:
+1. Download the latest Go compiler from https://golang.org/dl/.
+2. Follow the instructions for your operating system (https://go.dev/doc/install).
+3. Install the program:
 
 ```sh
 go install github.com/BourgeoisBear/amdacli@latest
