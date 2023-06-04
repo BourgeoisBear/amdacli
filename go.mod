@@ -1,4 +1,4 @@
-module github.com/BourgeoisBear/camcli
+module github.com/BourgeoisBear/amdacli
 
 go 1.20
 
