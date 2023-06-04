@@ -235,7 +235,7 @@ Batch API access to Amcrest & Dahua IP cameras.
 
 If COMMAND(s) are given, runs each command against each HOST (i.e. camera),
 then terminates. If no commands are provided, starts in interactive mode, where
-commands can be supplied from the console.
+commands can be supplied from the console.  Ctrl-d exits interactive mode.
 
 OPTION
 `
@@ -301,7 +301,6 @@ func main() {
 
 	flag.Parse()
 
-	// TODO: test under windows
 	// color handling
 	fd := os.Stdout.Fd()
 	if bForceColor || isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd) {
