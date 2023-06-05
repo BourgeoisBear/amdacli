@@ -59,3 +59,31 @@ PUTTING IT TOGETHER
     amdacli 'user:userpass@mycam' 'Multicast.TS[0]' 'AlarmServer.Enable=false'
 
 ```
+
+## Useful API Calls
+
+### Query
+
+| Action                          | Call                                                                  |
+| ------                          | ----                                                                  |
+| Fetch current settings          | `All`                                                                 |
+| Get system info                 | `/cgi-bin/magicBox.cgi?action=getSystemInfo`                          |
+| Get software version            | `/cgi-bin/magicBox.cgi?action=getSoftwareVersion`                     |
+| Get device class                | `/cgi-bin/magicBox.cgi?action=getDeviceClass`                         |
+| Get machine name                | `/cgi-bin/magicBox.cgi?action=getMachineName`                         |
+| Get vendor                      | `/cgi-bin/magicBox.cgi?action=getVendor`                              |
+| Get language capabilities       | `/cgi-bin/magicBox.cgi?action=getLanguageCaps`                        |
+| Get current time                | `/cgi-bin/global.cgi?action=getCurrentTime`                           |
+| Get encode config capability    | `/cgi-bin/encode.cgi?action=getConfigCaps[&channel=<chan_num>]`       |
+| Get recording capability        | `/cgi-bin/recordManager.cgi?action=getCaps`                           |
+| Get event management capability | `/cgi-bin/eventManager.cgi?action=getCaps`                            |
+| Get PTZ capability              | `/cgi-bin/ptz.cgi?action=getCurrentProtocolCaps[&channel=<chan_num>]` |
+
+### Alter
+
+| Action           | Call                                                                 |
+| ------           | ----                                                                 |
+| Reboot           | `/cgi-bin/magicBox.cgi?action=reboot`                                |
+| Shutdown         | `/cgi-bin/magicBox.cgi?action=shutdown`                              |
+| Set current time | `/cgi-bin/global.cgi?action=setCurrentTime&time=YYYY-MM-DD%20HH:m:s` |
+
