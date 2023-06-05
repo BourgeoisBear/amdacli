@@ -85,5 +85,5 @@ PUTTING IT TOGETHER
 | ------           | ----                                                                 |
 | Reboot           | `/cgi-bin/magicBox.cgi?action=reboot`                                |
 | Shutdown         | `/cgi-bin/magicBox.cgi?action=shutdown`                              |
-| Set current time | `/cgi-bin/global.cgi?action=setCurrentTime&time=YYYY-MM-DD%20HH:m:s` |
+| Set current time | `/cgi-bin/global.cgi?action=setCurrentTime&time=YYYY-M-D%20H:m:s` |
 
