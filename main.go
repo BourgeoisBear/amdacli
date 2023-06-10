@@ -47,10 +47,13 @@ type Sess struct {
 
 func URL2Sess(szUrl string) (Sess, error) {
 
-	// set proto to HTTP if unspecified
 	szUrl = strings.TrimSpace(szUrl)
-	if len(szUrl) > 0 &&
-		!strings.HasPrefix(szUrl, "http://") &&
+	if len(szUrl) == 0 {
+		return Sess{}, errors.New("empty URL")
+	}
+
+	// set proto to HTTP if unspecified
+	if !strings.HasPrefix(szUrl, "http://") &&
 		!strings.HasPrefix(szUrl, "https://") {
 		szUrl = "http://" + szUrl
 	}
@@ -142,7 +145,7 @@ func (se *Sess) DoCmd(cmd string, prependHost bool) {
 
 	fnReport := func(s ...interface{}) {
 		tmp := make([]interface{}, 0, len(s)+2)
-		tmp = append(tmp, "\x1b[91;1m"+"ERR "+"\x1b:[0m", host)
+		tmp = append(tmp, "\x1b[91;1mERR:\x1b[0m", host)
 		for _, v := range s {
 			tmp = append(tmp, v)
 		}
@@ -166,7 +169,7 @@ func (se *Sess) DoCmd(cmd string, prependHost bool) {
 
 	rsp, err := DigestAuthGet(pRq)
 	if err != nil {
-		fnReport("GET", err)
+		fnReport("HTTP", err)
 		return
 	}
 
@@ -320,9 +323,8 @@ func main() {
 		args = args[1:]
 
 		// parse hosts
-		htmp := strings.Split(szHosts, ",")
-		for ix := range htmp {
-			oS, e2 := URL2Sess(htmp[ix])
+		for _, hostUrl := range strings.Split(szHosts, ",") {
+			oS, e2 := URL2Sess(hostUrl)
 			if err != nil {
 				err = e2
 				return
