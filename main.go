@@ -95,11 +95,15 @@ func ToKV(s string) (ret KV, doSet bool) {
 	return
 }
 
+func URLEncode(v string) string {
+	return strings.ReplaceAll(url.QueryEscape(v), "+", "%20")
+}
+
 func ToUrl(v []KV) string {
 	tmp := make([]string, 0, len(v))
 	for _, kv := range v {
 		if len(kv.K) > 0 {
-			tmp = append(tmp, url.QueryEscape(kv.K)+"="+url.QueryEscape(kv.V))
+			tmp = append(tmp, URLEncode(kv.K)+"="+URLEncode(kv.V))
 		}
 	}
 	return strings.Join(tmp, "&")
